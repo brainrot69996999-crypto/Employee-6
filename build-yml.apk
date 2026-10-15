@@ -1,0 +1,72 @@
+name: Build APK
+on: [push, workflow_dispatch]
+permissions:
+  contents: write
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/cache@v4
+        with:
+          path: ~/.android/debug.keystore
+          key: debug-keystore
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+      - name: Create project
+        run: |
+          H=$(find . -name 'index*.html' -not -path './node_modules/*' -not -path './android/*' | awk '{print length, $0}' | sort -n | head -1 | cut -d' ' -f2-)
+          [ -n "$H" ] || { echo "MISSING FILE: index.html - add it to the repo"; echo "Files in your repo:"; find . -maxdepth 2 -not -path './.git*' | head -40; exit 1; }
+          mkdir -p www
+          [ "$H" -ef www/index.html ] || cp "$H" www/index.html
+          echo '{"name":"ai-employees","version":"1.0.0","private":true}' > package.json
+          echo '{"appId":"com.aiemployees.app","appName":"AI Employees","webDir":"www","plugins":{"CapacitorHttp":{"enabled":true}}}' > capacitor.config.json
+          npm i @capacitor/core@6 @capacitor/cli@6 @capacitor/android@6
+          npx cap add android
+      - name: Add native code
+        run: |
+          D=android/app/src/main/java/com/aiemployees/app
+          mkdir -p $D
+          for f in EmployeeListener EmployeePlugin AgentService MainActivity; do
+            S=$(find . -name "$f*.java" -not -path './android/*' -not -path './node_modules/*' | awk '{print length, $0}' | sort -n | head -1 | cut -d' ' -f2-)
+            if [ -n "$S" ]; then cp "$S" "$D/$f.java"
+            elif [ "$f" = MainActivity ]; then
+              printf '%s\n' 'package com.aiemployees.app;' 'import android.os.Bundle;' 'import com.getcapacitor.BridgeActivity;' 'public class MainActivity extends BridgeActivity {' '  @Override public void onCreate(Bundle b) { registerPlugin(EmployeePlugin.class); super.onCreate(b); }' '}' > $D/MainActivity.java
+            else echo "MISSING FILE: $f.java - add it to the repo"; echo "Files in your repo:"; find . -maxdepth 2 -not -path './.git*' -not -path './node_modules*' | head -40; exit 1; fi
+          done
+      - name: Patch manifest
+        run: |
+          sed -i 's/minSdkVersion = .*/minSdkVersion = 26/' android/variables.gradle
+          sed -i "s/versionCode 1/versionCode ${{ github.run_number }}/" android/app/build.gradle
+          python3 - <<'PY'
+          import os
+          p = 'android/app/src/main/AndroidManifest.xml'
+          s = open(p).read()
+          svc = '<service android:name=".EmployeeListener" android:exported="true" android:label="AI Employees" android:foregroundServiceType="specialUse" android:permission="android.permission.BIND_NOTIFICATION_LISTENER_SERVICE"><property android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE" android:value="Replies to messages for the user while the screen is off"/><intent-filter><action android:name="android.service.notification.NotificationListenerService"/></intent-filter></service>'
+          perms = '<uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW"/><uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS"/><uses-permission android:name="android.permission.WAKE_LOCK"/><uses-permission android:name="android.permission.FOREGROUND_SERVICE"/><uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE"/><uses-permission android:name="android.permission.POST_NOTIFICATIONS"/><uses-permission android:name="android.permission.ACCESS_NETWORK_STATE"/><uses-permission android:name="android.permission.ACCESS_WIFI_STATE"/><uses-permission android:name="android.permission.WRITE_SETTINGS"/><uses-permission android:name="android.permission.ACCESS_NOTIFICATION_POLICY"/><queries><intent><action android:name="android.intent.action.MAIN"/><category android:name="android.intent.category.LAUNCHER"/></intent></queries>'
+          agent = '<service android:name=".AgentService" android:exported="true" android:label="AI Employees helper" android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE"><intent-filter><action android:name="android.accessibilityservice.AccessibilityService"/></intent-filter><meta-data android:name="android.accessibilityservice" android:resource="@xml/agent_config"/></service>'
+          os.makedirs('android/app/src/main/res/xml', exist_ok=True)
+          open('android/app/src/main/res/xml/agent_config.xml', 'w').write('<?xml version="1.0" encoding="utf-8"?><accessibility-service xmlns:android="http://schemas.android.com/apk/res/android" android:accessibilityEventTypes="typeWindowStateChanged" android:accessibilityFeedbackType="feedbackGeneric" android:accessibilityFlags="flagReportViewIds" android:canRetrieveWindowContent="true" android:packageNames="com.android.settings,com.miui.securitycenter,com.miui.powerkeeper" android:notificationTimeout="200"/>')
+          s = s.replace('</application>', svc + agent + '</application>').replace('</manifest>', perms + '</manifest>')
+          open(p, 'w').write(s)
+          PY
+      - name: Build
+        run: |
+          yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses > /dev/null || true
+          npx cap sync android
+          cd android
+          chmod +x gradlew
+          ./gradlew assembleDebug
+      - uses: actions/upload-artifact@v4
+        with:
+          name: app
+          path: android/app/build/outputs/apk/debug/app-debug.apk
+      - uses: softprops/action-gh-release@v2
+        with:
+          tag_name: build-${{ github.run_number }}
+          files: android/app/build/outputs/apk/debug/app-debug.apk

@@ -1,0 +1,124 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>AI Employees</title>
+<style>
+:root{--bg:#E9EEF5;--card:#fff;--ink:#16202E;--mu:#5C6B80;--line:#D5DDE8;--ok:#1F8A5B}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.4 "Avenir Next","Segoe UI",Roboto,sans-serif;padding:max(env(safe-area-inset-top),16px) 16px max(env(safe-area-inset-bottom),16px)}
+h1{font-size:26px;margin:18px 0 4px;letter-spacing:-.02em}
+p,small,label{color:var(--mu)}p{margin:0 0 16px}small,label{font-size:14px}
+.card{background:var(--card);border-radius:18px;padding:16px;margin-bottom:12px}
+.badge{padding-top:34px;position:relative;cursor:pointer;display:flex;gap:14px;align-items:center}
+.badge:before{content:"";position:absolute;top:12px;left:50%;width:44px;height:8px;margin-left:-22px;border-radius:4px;background:var(--bg)}
+.ic{font-size:32px}.chip{margin-left:auto;font-size:13px;padding:4px 10px;border-radius:99px;background:var(--bg);white-space:nowrap}.chip.on{background:var(--ok);color:#fff}
+.row{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:12px 0;border-bottom:1px solid var(--line)}.row:last-child{border:0}
+button{background:var(--ink);color:#fff;border:0;border-radius:12px;padding:10px 16px;font:inherit;font-weight:600}button.g{background:none;color:var(--mu);padding:8px 0}
+input,select,textarea{width:100%;background:var(--bg);color:var(--ink);border:0;border-radius:12px;padding:12px;font:inherit;margin:6px 0 12px}
+.sw{width:54px;height:32px;border-radius:16px;background:#B8C3D2;position:relative;flex:none;transition:.2s}.sw:after{content:"";position:absolute;top:4px;left:4px;width:24px;height:24px;border-radius:50%;background:#fff;transition:.2s}.sw.on{background:var(--ok)}.sw.on:after{left:26px}
+summary{font-weight:600}a.b{display:inline-block;background:var(--ink);color:#fff;border-radius:12px;padding:10px 16px;font-weight:600;text-decoration:none}
+</style></head><body><div id="app"></div><script>
+const KEY='emp.wa',D={active:false,tone:'Friendly',groups:false,owner:'',about:'',fallback:'Thanks for your message! I will get back to you soon.',url:'https://api.groq.com/openai/v1/chat/completions',model:'llama-3.1-8b-instant',url2:'https://text.pollinations.ai/openai',model2:'openai',key:''};
+let S={...D,...JSON.parse(localStorage.getItem(KEY)||'{}')},P={notif:false,overlay:false,battery:false},view='home';
+if(S.url.includes('pollinations')){S.url=D.url;S.model=D.model}
+const mockGet=()=>JSON.parse(localStorage.getItem('mock')||'{}');
+const mock={status:async()=>({notif:false,overlay:false,battery:false,...mockGet()}),request:async({type})=>{localStorage.setItem('mock',JSON.stringify({...mockGet(),[type]:true}))},configure:async()=>{},getLog:async()=>({log:'[]'}),clearLog:async()=>{},settingsDo:async()=>({ok:true}),agentArm:async()=>({}),agentProfile:async()=>({profile:''}),agentInfo:async()=>({info:''}),agentNote:async()=>{},agentAsk:async()=>({yes:true}),testSound:async()=>{},agentDump:async()=>({screen:''}),agentDo:async()=>({res:'ok'}),agentHome:async()=>{}};
+const N=window.Capacitor?.Plugins?.Employee||mock,$=s=>document.querySelector(s),esc=s=>String(s).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;');
+const sys=()=>{const n=S.owner||'the owner';return `You are ${n}'s personal assistant. You handle ${n}'s WhatsApp messages while ${n} is busy and you pass things on to ${n}. Do not sound like an AI assistant: never write phrases like "How can I assist you" or "As an AI". Text like a friendly, capable human assistant: 1-2 short sentences, ${S.tone.toLowerCase()}, in the same language and style as the sender (including Hindi or Hinglish). Reply to exactly what the sender just said, directly. If they ask something you cannot know or decide (plans, money, yes or no, commitments), say you will check with ${n} and get back to them. If the message is for ${n} to act on, or sounds urgent, say you will pass it on to ${n}. If it is a photo, voice note, video or sticker you cannot see, say you will pass it on to ${n}. When what you know about ${n} covers the question, answer it directly and confidently. Never invent facts, times or promises. If someone sincerely asks whether you are a bot or a person, say honestly that you are ${n}'s automated assistant. ${S.about?'What you know about '+n+': '+S.about+'.':''} Output only the message to send.`}
+const save=()=>{localStorage.setItem(KEY,JSON.stringify(S));N.configure({active:S.active&&P.notif,groups:S.groups,sys:sys(),owner:S.owner,url:S.url,model:S.model,key:S.key,url2:D.url2,model2:D.model2})};
+const go=v=>{view=v;render()};
+// Future employees: add { id, icon, name, desc, status(), screen(el) } here.
+const EMPLOYEES=[{id:'wa',icon:'💬',name:'WhatsApp replier',desc:'Answers your WhatsApp chats for you',status:()=>!(P.notif&&P.battery)?'Not connected':S.active?'On duty':'Off duty',screen:a=>P.notif&&P.battery?waPanel(a):waConnect(a)},{id:'set',icon:'🔧',name:'Fix my phone',desc:'Tell it the problem, it fixes it for you',status:()=>P.agent?'Ready':'Needs permission',screen:a=>setScreen(a)}];
+async function refresh(){P=await N.status();render()}
+function render(){const a=$('#app'),e=EMPLOYEES.find(x=>x.id===view);
+ if(e)return e.screen(a);
+ a.innerHTML='<h1>AI employees</h1><p>Tap an employee to put them to work.</p>'+EMPLOYEES.map(e=>`<div class="card badge" onclick="go('${e.id}')"><span class="ic">${e.icon}</span><div><b>${e.name}</b><br><small>${e.desc}</small></div><span class="chip ${e.status()=='On duty'?'on':''}">${e.status()}</span></div>`).join('')}
+function waConnect(a){const st=[['notif','Read and reply to notifications','Required. Lets the employee see and answer WhatsApp messages.'],['overlay','Display over other apps','Shows a small green dot while the employee is on duty.'],['battery','Work while the phone is locked','Required. Stops Android from putting the employee to sleep when the screen is off.']];
+ a.innerHTML=`<button class="g" onclick="go('home')">‹ Employees</button><h1>Connect WhatsApp</h1><p>Allow these, then come back to this screen.</p><div class="card">${st.map(([k,t,d])=>`<div class="row"><div><b>${t}</b><br><small>${d}</small></div>${P[k]?'<b>✓</b>':`<button onclick="N.request({type:'${k}'})">Allow</button>`}</div>`).join('')}</div>`}
+function waPanel(a){a.innerHTML=`<button class="g" onclick="go('home')">‹ Employees</button><h1>💬 WhatsApp replier</h1><p>Connected to WhatsApp</p>
+<div class="card"><div class="row"><div><b>On duty</b><br><small>Reply to incoming messages</small></div><div class="sw ${S.active?'on':''}" onclick="S.active=!S.active;save();render()"></div></div>
+<div class="row"><div><b>Reply in groups</b></div><div class="sw ${S.groups?'on':''}" onclick="S.groups=!S.groups;save();render()"></div></div></div>
+${S.key?'':`<div class="card"><b>Turn on fast replies</b><p style="margin:6px 0 10px">Get a free Groq key (no credit card): tap the button, sign up, create an API key, then paste it here.</p><a class="b" href="https://console.groq.com/keys" target="_blank">Get free key</a><input placeholder="Paste key here (starts with gsk_)" style="margin-top:12px" onchange="S.key=this.value.trim();save();render()"></div>`}
+<div class="card"><b>Keep it always on</b>${P.listening===false?'<p style="margin:6px 0;color:#C2410C">Not listening right now. Open app settings and fix the battery setting.</p>':''}${P.brand&&P.brand.includes('xiaomi')?`<p style="margin:6px 0 4px">Your POCO needs these 3 settings to reply while locked:</p>
+<div class="row"><span>1. Autostart: turn on</span><button onclick="N.request({type:'autostart'})">Open</button></div>
+<div class="row"><span>2. Battery saver: No restrictions</span><button onclick="N.request({type:'powersaver'})">Open</button></div>
+<div class="row"><span>3. Lock the app: in recent apps, hold the AI Employees card and tap the lock</span></div>`:`<p style="margin:6px 0 10px">Needed for replies while the phone is locked: turn Autostart on, set Battery to "No restrictions", and lock the app in recent apps.</p><button onclick="N.request({type:'app'})">Open app settings</button>`}</div>
+<div class="card"><label>Your name</label><input value="${esc(S.owner)}" placeholder="What your assistant should call you" onchange="S.owner=this.value;save()"><label>Tone</label><select onchange="S.tone=this.value;save()">${['Friendly','Professional','Short and casual'].map(t=>`<option ${t==S.tone?'selected':''}>${t}</option>`).join('')}</select>
+<label>What your assistant should know about you (plans, rules, what to say)</label><textarea rows="4" onchange="S.about=this.value;save()">${esc(S.about)}</textarea>
+</div>
+<div class="card"><b>What I've handled</b><div id="log" style="margin:8px 0"></div><button onclick="brief()">Brief me</button> <button class="g" onclick="N.clearLog().then(loadLog)">Clear</button><p id="b" style="margin:10px 0 0;white-space:pre-wrap"></p></div><div class="card"><label>Try a reply</label><input id="t" placeholder="Type a customer message"><button onclick="test()">Test reply</button><p id="o" style="margin:10px 0 0"></p></div>
+<details class="card"><summary>AI settings</summary><label>Endpoint (OpenAI-compatible)</label><input value="${esc(S.url)}" onchange="S.url=this.value;save()"><label>Model</label><input value="${esc(S.model)}" onchange="S.model=this.value;save()"><label>API key (optional)</label><input value="${esc(S.key)}" onchange="S.key=this.value;save()"></details>`;loadLog()}
+let LOG=[];
+let MAP=JSON.parse(localStorage.getItem('phonemap')||'null'),PB=JSON.parse(localStorage.getItem('playbook')||'[]'),PROFILE='';
+const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+async function ai(s,u,j,mdl){for(const[p,m,k]of[...(mdl&&S.url.includes('groq')?[[S.url,mdl,S.key]]:[]),[S.url,S.model,S.key],[D.url2,D.model2,'']]){if(!k&&!p.includes('pollinations'))continue;for(let t=0;t<2;t++){const ac=new AbortController(),tm=setTimeout(()=>ac.abort(),15000);try{const r=await fetch(p,{method:'POST',signal:ac.signal,headers:{'Content-Type':'application/json',...(k&&{Authorization:'Bearer '+k})},body:JSON.stringify({model:m,temperature:.4,max_tokens:j?300:150,...(j&&{response_format:{type:'json_object'}}),messages:[{role:'system',content:s},{role:'user',content:u}]})});if(r.status===429){clearTimeout(tm);const ra=+r.headers.get('retry-after')||4;if(t==0&&ra<=20){await new Promise(z=>setTimeout(z,ra*1000));continue}break}const x=(await r.json()).choices[0].message.content.trim();if(x)return x}catch(e){}finally{clearTimeout(tm)}break}}throw 0}
+const PAGES='settings,wifi,bluetooth,internet,airplane,network,display,sound,battery,battery_usage,location,apps,default_apps,storage,language,datetime,keyboard,privacy,nfc,vpn,about,accessibility,wallpaper';
+const AGENT=`You are a phone repair technician for people who know nothing about tech. Reply with ONE JSON object per turn and nothing else.
+Actions: {"do":"open","page":"${PAGES.split(',').join('|')}"}, {"do":"app","app":"name","page":"details|notifications"}, {"do":"click","id":N} (switches show [ON] or [OFF]), {"do":"slide","id":N,"value":0-100} (sets a [SLIDER] to that percent of its range; the middle is 50), {"do":"type","text":"..."} (types only into the Settings search box), {"do":"scroll"}, {"do":"back"}, {"do":"brightness","value":0-100}, {"do":"volume","stream":"media|ring|alarm|notification","value":0-100}, {"do":"ringer","mode":"normal|vibrate|silent"}, {"do":"font","value":100} (text size percent, 100 is normal, 150 is big), {"do":"timeout","value":seconds}, {"do":"rotate","on":true}, {"do":"dnd","mode":"off|priority|alarms|silent"}, {"do":"flashlight","on":false}, {"do":"check","what":"sound|internet"}, {"do":"ask","say":"yes/no question in plain words"}, {"do":"done","say":"..."}.
+Add "note" (3 to 5 plain words, like "Checking Bluetooth") to every action.
+How to work: every turn you get the phone's facts. Use them to guess the most likely cause, fix it, then verify with check or ask. If it is still broken, move on to the next likely cause. Never repeat a step that did not help. Keep going until it is fixed or you truly ran out of ideas; there is no step limit. Think of every possible cause, including hidden ones. For no sound: Bluetooth or headphones connected, silent mode or Do Not Disturb, one kind of volume low, mono or balance in Accessibility settings, a muted app, a dirty or broken speaker.
+If the screen ends with (scroll down for more), scroll to see more. For any setting that is not on a main page, search first: open settings, tap the search box, type one or two words, tap the result, then tap the switch on the page it opens. Each turn you also see Phone (the model and Android version: use what you know about that brand), Known on this phone (screens and items found there: use their exact names), Past fixes (what worked before), Path (where you are) and Plan. In your first reply add "plan": a short list of the screens you expect to visit. If a screen is a dead end, go back or open settings and try another way.
+Never touch resets, accounts, passwords, locks, deleting, cleaning or uninstalling.
+When fixed, or when only a repair shop can help, return done with "say": one or two short plain sentences, no jargon, no AI talk. Say what you changed.`;
+const netOK=async()=>{try{await Promise.race([fetch('https://clients3.google.com/generate_204',{mode:'no-cors',cache:'no-store'}),new Promise((_,r)=>setTimeout(r,5000))]);return true}catch(e){return false}};
+let STOP=false;
+function setScreen(a){a.innerHTML=`<button class="g" onclick="go('home')">‹ Employees</button><h1>🔧 Fix my phone</h1><p>Tell me what is wrong. I will fix it for you.</p>
+${P.agent?'':`<div class="card"><b>One thing first</b><p style="margin:6px 0 10px">Let the helper tap inside Settings for you. It only works in Settings, and only after you press Fix it. Tap Allow, find "AI Employees helper" and switch it on.</p><button onclick="N.request({type:'accessibility'})">Allow</button></div>`}
+<div class="card"><b>My phone</b><p style="margin:6px 0 10px">${MAP?'I know '+Object.keys(MAP.pages).length+' sections of your phone ✓':'I have not learned your phone yet. I will do it the first time you press Fix it.'}</p><button class="g" onclick="relearn()">Learn my phone again</button></div>
+<div class="card"><input id="cmd" placeholder="Example: no internet, no sound, screen too dark"><button onclick="fix()">Fix it</button> <button class="g" onclick="STOP=true">Stop</button><p id="res" style="margin:12px 0 0;font-size:18px;white-space:pre-wrap"></p></div>
+<details class="card"><summary>More permissions (brightness, timeout, silent mode)</summary>${[['write','Modify system settings','Brightness, screen timeout, rotation'],['dnd','Do Not Disturb access','Silent modes']].map(([k,t,d])=>`<div class="row"><div><b>${t}</b><br><small>${d}</small></div>${P[k]?'<b>✓</b>':`<button onclick="N.request({type:'${k}'})">Allow</button>`}</div>`).join('')}</details>`}
+const SKIP=/update|restart|reboot|clean|boost|scan|backup|reset|account|sign|sync|share|cloud|password|lock|developer|about|search/i;
+const SYN={internet:'wi-fi mobile data network airplane sharing hotspot',wifi:'wi-fi network',sound:'sound volume vibration bluetooth disturb',vibrat:'sound vibration keyboard haptic',battery:'battery power',notif:'notification apps',text:'display font size',font:'display font size',screen:'display brightness',bright:'display brightness',bluetooth:'bluetooth connected devices',slow:'storage battery apps',keyboard:'additional input language',browser:'apps default',default:'apps default'};
+function hints(t){const l=t.toLowerCase(),w=(l+' '+Object.keys(SYN).filter(k=>l.includes(k)).map(k=>SYN[k]).join(' ')).split(/[^a-z0-9-]+/).filter(x=>x.length>3);
+ return Object.entries((MAP&&MAP.pages)||{}).map(([k,v])=>{const x=(k+' '+v.join(' ')).toLowerCase();return[w.reduce((s,y)=>s+(x.includes(y)?1:0),0),k+': '+v.slice(0,10).join(', ')]}).filter(x=>x[0]>0).sort((a,b)=>b[0]-a[0]).slice(0,5).map(x=>x[1]).join('\n').slice(0,700)}
+function past(t){const w=t.toLowerCase().split(/[^a-z0-9]+/).filter(x=>x.length>3);return PB.map(p=>[w.filter(x=>p.p.includes(x)).length,p]).filter(x=>x[0]>0).sort((a,b)=>b[0]-a[0]).slice(0,2).map(x=>'"'+x[1].p+'" was fixed by: '+x[1].s).join('\n')}
+// Learns this phone: reads who it is, then opens each main Settings section (reading only, never switching anything) and remembers the exact names.
+async function learn(){const say=m=>{const e=$('#res');if(e)e.textContent=m;N.agentNote({text:m})},rd=async()=>{await N.agentArm({seconds:60});return((await N.agentDump()).screen||'').split('\n').filter(Boolean)},lab=l=>l.replace(/^\d+\. /,'').replace(/ \[(ON|OFF|SLIDER[^\]]*)\]$/,'');
+ try{PROFILE=(await N.agentProfile()).profile||''}catch(e){}
+ const pages={},seen=new Set(),end=Date.now()+4*60000;let scrolls=0,sig=null;
+ await N.settingsDo({do:'open',page:'settings'});await sleep(1200);
+ for(let n=0;n<60&&Date.now()<end;n++){
+  if((await N.agentArm({seconds:60})).stop){await N.agentArm({seconds:60,reset:true});break}
+  const L=await rd();if(!L.length)break;if(!sig)sig=new Set(L.map(lab));
+  const row=L.find(l=>/^\d+\. /.test(l)&&!/\[(ON|OFF|SLIDER)/.test(l)&&!seen.has(lab(l))&&!SKIP.test(lab(l)));
+  if(!row){if(L.some(l=>l.startsWith('(scroll'))&&scrolls<8){await N.agentDo({do:'scroll'});scrolls++;await sleep(700);continue}break}
+  const name=lab(row);seen.add(name);say('🔎 Learning your phone… '+name);
+  if((await N.agentDo({do:'click',id:parseInt(row)})).res!=='ok')continue;
+  await sleep(900);const it=(await rd()).filter(l=>/^\d+\. /.test(l)).map(l=>lab(l)+(/\[(ON|OFF)/.test(l)?' (switch)':''));
+  if(it.length&&it.filter(x=>sig.has(x.replace(' (switch)',''))).length<it.length*.7)pages[name]=it.slice(0,25);
+  await N.agentDo({do:'back'});await sleep(800);
+  const back=(await rd()).map(lab);if(back.filter(x=>sig.has(x)).length<Math.min(3,sig.size)){await N.settingsDo({do:'open',page:'settings'});await sleep(1200);for(let i=0;i<scrolls;i++){await N.agentDo({do:'scroll'});await sleep(500)}}}
+ MAP={t:Date.now(),pages};localStorage.setItem('phonemap',JSON.stringify(MAP));await N.agentNote({text:''});await N.agentHome();return Object.keys(pages).length}
+async function relearn(){if(!P.agent)return;await N.agentArm({seconds:60,reset:true});const n=await learn(),e=$('#res');if(e)e.textContent='Done. I learned '+n+' sections of your phone.'}
+async function fix(){const o=$('#res'),t=$('#cmd').value.trim(),sorry='I tried many things but could not fix this one. A phone repair shop or someone you trust can look at it.';if(!t)return;
+ if(!P.agent){o.textContent='Please tap Allow first and switch on the helper.';return}
+ if(!MAP){o.textContent='First, I will learn your phone. This takes about 2 minutes, one time. Tap Stop to skip.';await N.agentArm({seconds:60,reset:true});await learn()}
+ if(!PROFILE){try{PROFILE=(await N.agentProfile()).profile||''}catch(e){}}
+ STOP=false;let good=false;const kn=hints(t),pf=past(t),tried=[],end=Date.now()+15*60000;let bad=0,blk=0,wrap='',last='',lastAI=0,path=[],plan='';
+ const say=m=>{const e=$('#res');if(e)e.textContent=m;N.agentNote({text:m})};
+ await N.agentArm({seconds:60,reset:true});
+ for(let n=0;n<150&&!STOP&&Date.now()<end;n++){
+  if((await N.agentArm({seconds:60})).stop){STOP=true;break}
+  let scr='',info='';try{scr=(await N.agentDump()).screen;info=(await N.agentInfo()).info}catch(e){}
+  await new Promise(r=>setTimeout(r,Math.max(0,2200-(Date.now()-lastAI))));lastAI=Date.now();
+  let j;try{j=JSON.parse((await ai(AGENT,`Problem: ${t}\nPhone: ${PROFILE||'unknown'}\nKnown on this phone:\n${kn||'(not learned yet)'}\nPast fixes: ${pf||'none'}\nPhone facts: ${info}\nPlan: ${plan||'(none yet: add a "plan" field to your reply)'}\nPath: ${path.join(' > ')||'(unknown)'}\nTried so far: ${tried.slice(-20).join('; ')||'nothing'}\nScreen:\n${scr||'(not in Settings)'}${wrap}`,true,'llama-3.3-70b-versatile')).match(/\{[\s\S]*\}/)[0])}catch(e){if(++bad>5)break;continue}
+  if(j.plan)plan=String(j.plan).slice(0,200);
+  if(j.note)say('⏳ '+j.note+'…');
+  if(j.do==='done'){if(good){PB.unshift({p:t.toLowerCase().slice(0,80),s:tried.filter(x=>/: ok$/.test(x)).slice(-8).join('; ').slice(0,200)});PB=PB.slice(0,30);localStorage.setItem('playbook',JSON.stringify(PB))}await N.agentNote({text:''});await N.agentHome();o.textContent=j.say||'Done.';return}
+  let res='ok';const ln=(scr.split('\n').find(l=>l.startsWith(j.id+'. '))||''),line=ln.slice(0,40);
+  if(['click','scroll','back','slide','type'].includes(j.do)){await N.agentArm({seconds:60});res=(await N.agentDo(j)).res}
+  else if(j.do==='ask')res=(await N.agentAsk({text:j.say||'Is it fixed?'})).yes?'user said yes':'user said no';
+  else if(j.do==='check'){if(j.what==='sound'){await N.testSound();res=(await N.agentAsk({text:'Did you hear a beep?'})).yes?'beep heard':'beep NOT heard'}else res=await netOK()?'internet works':'no internet'}
+  else{const r=await N.settingsDo(j);if(!r.ok)res=r.msg||'failed'}
+  if(/^(user said yes|beep heard|internet works)/.test(res))good=true;
+  if(res==='ok'){if(j.do==='open')path=[j.page];else if(j.do==='app')path=[j.app];else if(j.do==='back')path.pop();else if(j.do==='click'&&ln&&!/\[(ON|OFF|SLIDER)/.test(ln))path.push(ln.replace(/^\d+\. /,'').slice(0,25))}
+  if(/^blocked/.test(res)){blk++;if(blk===2)wrap='\nYou were blocked twice for safety. Finish now with done and tell the user simply what they can do themselves.';if(blk>=4){await N.agentNote({text:''});await N.agentHome();o.textContent='I can not change that one automatically because it is not safe. Please ask someone you trust to help.';return}}
+  const a=[j.do,j.page||j.app||j.stream||j.mode||j.what||j.text||j.value||'',line].join(' ').trim().slice(0,60)+': '+res;
+  bad=((res!=='ok'&&!/^(user|beep|internet)/.test(res))||(a===last&&!['back','scroll'].includes(j.do)))?bad+1:0;if(bad>5)break;last=a;tried.push(a);
+  await new Promise(r=>setTimeout(r,900))}
+ await N.agentNote({text:''});await N.agentHome();o.textContent=STOP?'Stopped.':sorry}
+async function test(){const o=$('#o'),t0=Date.now();o.textContent='Thinking…';try{const r=await ai(sys(),`Someone just wrote: ${$('#t').value}\nWrite the reply.`);o.textContent=r+'  ('+((Date.now()-t0)/1000).toFixed(1)+'s)'}catch(e){o.textContent='No AI reachable right now. Add a free key at the top for fast replies.'}}
+async function loadLog(){const el=$('#log');if(!el)return;try{LOG=JSON.parse((await N.getLog()).log||'[]')}catch(e){LOG=[]}
+ el.innerHTML=LOG.length?LOG.slice(-12).reverse().map(x=>`<div class="row" style="display:block"><b>${esc(x.c)}</b> <small>${new Date(x.t).toLocaleString([],{dateStyle:'short',timeStyle:'short'})}</small><br>“${esc(x.m)}”<br><small>I replied: ${esc(x.r)}</small></div>`).join(''):'<small>Nothing yet. Messages your assistant handles will show up here.</small>'}
+async function brief(){const o=$('#b'),n=S.owner||'the owner';if(!LOG.length){o.textContent='Nothing to report yet.';return}o.textContent='Putting your briefing together…';try{o.textContent=await ai(`You are ${n}'s personal assistant giving ${n} a quick update on the messages you handled. Speak to ${n} directly. Say who wrote, what they wanted and what you told them, and flag anything that needs ${n}'s decision. Short, plain sentences, no lists, no AI phrases.`,LOG.slice(-30).map(x=>`${x.c} wrote: ${x.m}\nI replied: ${x.r}`).join('\n\n'))}catch(e){o.textContent='Could not reach the AI. The full list is above.'}}
+refresh().then(save);addEventListener('focus',refresh);document.addEventListener('visibilitychange',()=>!document.hidden&&refresh());
+</script></body></html>
